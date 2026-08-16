@@ -869,11 +869,16 @@ GLTexture *BlurEffect::ensureNoiseTexture()
 
         QImage noiseImage(QSize(256, 256), QImage::Format_Grayscale8);
 
+        // BBDX: zero-mean noise. The old 0..strength noise only added light,
+        // which was barely visible in SDR (clipped at 1.0) but lifted bright
+        // areas noticeably in HDR.
+        const int noiseAmplitude = std::max(1, m_noiseStrength / 2);
         for (int y = 0; y < noiseImage.height(); y++) {
             uint8_t *noiseImageLine = (uint8_t *)noiseImage.scanLine(y);
 
             for (int x = 0; x < noiseImage.width(); x++) {
-                noiseImageLine[x] = std::rand() % m_noiseStrength;
+                const int value = (std::rand() % (2 * noiseAmplitude + 1)) - noiseAmplitude;
+                noiseImageLine[x] = static_cast<uint8_t>(128 + value);
             }
         }
 
@@ -904,6 +909,19 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
 
     if (!shouldBlur(w, mask, data)) {
         return;
+    }
+
+    // The same view can change its color description (for example when SDR/HDR
+    // or a display profile is toggled). All offscreen textures and the cache
+    // are encoded for the old description and must be recreated.
+    if (!renderInfo.colorDescription || *renderInfo.colorDescription != *renderTarget.colorDescription()) {
+        renderInfo.textures.clear();
+        renderInfo.framebuffers.clear();
+        if (renderInfo.cache) {
+            renderInfo.cache->invalidate(static_cast<uint>(BlurCacheInvalidationFlag::FULL),
+                                         "Render target color description changed");
+        }
+        renderInfo.colorDescription = renderTarget.colorDescription();
     }
 
     // BBDX: only blur top level for performance reasons
@@ -1184,6 +1202,9 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
     // The downsample pass of the dual Kawase algorithm: the background will be scaled down 50% every iteration.
     {
         ShaderManager::instance()->pushShader(m_downsamplePass.shader.get());
+        m_downsamplePass.shader->setColorspaceUniforms(renderTarget.colorDescription(),
+                                                       renderTarget.colorDescription(),
+                                                       RenderingIntent::RelativeColorimetricWithBPC);
 
         QMatrix4x4 projectionMatrix;
         projectionMatrix.ortho(QRectF(0.0, 0.0, backgroundRect.width(), backgroundRect.height()));
@@ -1214,6 +1235,9 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
     // The upsample pass of the dual Kawase algorithm: the background will be scaled up 200% every iteration.
     {
         ShaderManager::instance()->pushShader(m_upsamplePass.shader.get());
+        m_upsamplePass.shader->setColorspaceUniforms(renderTarget.colorDescription(),
+                                                     renderTarget.colorDescription(),
+                                                     RenderingIntent::RelativeColorimetricWithBPC);
 
         QMatrix4x4 projectionMatrix;
         projectionMatrix.ortho(QRectF(0.0, 0.0, backgroundRect.width(), backgroundRect.height()));
@@ -1292,6 +1316,11 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
 #endif
         if (!m_refractionPass->pushShader()) {
         ShaderManager::instance()->pushShader(m_onscreenPass.shader.get());
+        m_onscreenPass.shader->setColorspaceUniforms(renderTarget.colorDescription(),
+                                                     renderTarget.colorDescription(),
+                                                     RenderingIntent::RelativeColorimetricWithBPC);
+        } else {
+        m_refractionPass->setColorspaceUniforms(renderTarget);
         } // indent intentional for KWin diff
 
         // BBDX: MVP matrix maps to backgroundRect for BlurCache

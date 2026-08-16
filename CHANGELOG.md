@@ -1,6 +1,16 @@
 # DEV
 Things not in any tagged release yet:
 
+### Bug Fixes:
+- Perform the blur convolution in linear light by using KWin's render target
+  color description (encodingToNits/nitsToEncoding) instead of averaging
+  display-encoded values. This fixes brightness shifts on bright/dark
+  backgrounds and HDR color handling.
+- Make the dithering noise zero-mean so it no longer brightens bright areas,
+  which was especially visible in HDR.
+- Recreate blur render targets when the view's color description changes
+  (for example when toggling SDR/HDR or changing display profiles).
+
 # 2.5.1
 
 ### Bug Fixes:

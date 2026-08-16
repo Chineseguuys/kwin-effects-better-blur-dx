@@ -1,3 +1,4 @@
+#include "colormanagement.glsl"
 uniform sampler2D texUnit;
 uniform mat4 colorMatrix;
 uniform float offset;
@@ -67,6 +68,22 @@ float roundedRectangleDist(vec2 p, vec2 b, float r)
     return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
 }
 
+vec4 toLinear(vec4 color)
+{
+    return encodingToNits(vec4(color.rgb, 1.0),
+                          sourceNamedTransferFunction,
+                          sourceTransferFunctionParams.x,
+                          sourceTransferFunctionParams.y);
+}
+
+vec4 toEncoding(vec4 color)
+{
+    return nitsToEncoding(vec4(color.rgb, 1.0),
+                          destinationNamedTransferFunction,
+                          destinationTransferFunctionParams.x,
+                          destinationTransferFunctionParams.y);
+}
+
 void main(void)
 {
     vec2 offsets[8] = vec2[](
@@ -110,10 +127,13 @@ void main(void)
 
         for (int i = 0; i < 8; ++i) {
             vec2 off = offsets[i] * offset;
-            sum.r += texture2D(texUnit, coordR + off).r * weights[i];
-            sum.g += texture2D(texUnit, coordG + off).g * weights[i];
-            sum.b += texture2D(texUnit, coordB + off).b * weights[i];
-            sum.a += texture2D(texUnit, coordG + off).a * weights[i];
+            vec4 tapR = toLinear(texture2D(texUnit, coordR + off));
+            vec4 tapG = toLinear(texture2D(texUnit, coordG + off));
+            vec4 tapB = toLinear(texture2D(texUnit, coordB + off));
+            sum.r += tapR.r * weights[i];
+            sum.g += tapG.g * weights[i];
+            sum.b += tapB.b * weights[i];
+            sum.a += tapG.a * weights[i];
         }
 
         sum /= weightSum;
@@ -144,14 +164,17 @@ void main(void)
 
         for (int i = 0; i < 8; ++i) {
             vec2 off = offsets[i] * offset;
-            sum.r += texture2D(texUnit, coordR + off).r * weights[i];
-            sum.g += texture2D(texUnit, coordG + off).g * weights[i];
-            sum.b += texture2D(texUnit, coordB + off).b * weights[i];
-            sum.a += texture2D(texUnit, coordG + off).a * weights[i];
+            vec4 tapR = toLinear(texture2D(texUnit, coordR + off));
+            vec4 tapG = toLinear(texture2D(texUnit, coordG + off));
+            vec4 tapB = toLinear(texture2D(texUnit, coordB + off));
+            sum.r += tapR.r * weights[i];
+            sum.g += tapG.g * weights[i];
+            sum.b += tapB.b * weights[i];
+            sum.a += tapG.a * weights[i];
         }
 
         sum /= weightSum;
     }
 
-    gl_FragColor = sum * colorMatrix;
+    gl_FragColor = toEncoding(sum) * colorMatrix;
 }

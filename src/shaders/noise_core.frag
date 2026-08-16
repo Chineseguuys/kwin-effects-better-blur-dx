@@ -10,6 +10,7 @@ out vec4 fragColor;
 void main(void)
 {
     vec2 uvNoise = vec2(gl_FragCoord.xy / noiseTextureSize);
+    vec3 noise = texture(texUnit, uvNoise).rrr - vec3(128.0 / 255.0);
 
-    fragColor = vec4(texture(texUnit, uvNoise).rrr, 0);
+    fragColor = vec4(noise, 0);
 }

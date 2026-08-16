@@ -2,6 +2,8 @@
 #include "refraction_pass.hpp"
 #include "utils.h"
 
+#include <core/rendertarget.h>
+
 #include <memory>
 #include <opengl/glshader.h>
 #include <opengl/glshadermanager.h>
@@ -101,6 +103,17 @@ bool BBDX::RefractionPass::pushShader() const {
     return true;
 }
 
+
+void BBDX::RefractionPass::setColorspaceUniforms(const KWin::RenderTarget &renderTarget) const
+{
+    if (!enabled()) {
+        return;
+    }
+
+    m_shader->setColorspaceUniforms(renderTarget.colorDescription(),
+                                    renderTarget.colorDescription(),
+                                    KWin::RenderingIntent::RelativeColorimetricWithBPC);
+}
 
 bool BBDX::RefractionPass::setParameters(const QMatrix4x4 &projectionMatrix,
                                          const QMatrix4x4 &colorMatrix,

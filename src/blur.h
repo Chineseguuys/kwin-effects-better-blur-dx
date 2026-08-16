@@ -40,6 +40,7 @@
 #include <unordered_map>
 
 namespace KWin {
+class ColorDescription;
 #if KWIN_VERSION < KWIN_VERSION_CODE(6, 6, 90)
 class BlurManagerInterface;
 class ContrastManagerInterface;
@@ -59,6 +60,10 @@ struct BlurRenderData
     std::vector<std::unique_ptr<GLFramebuffer>> framebuffers;
 
     std::unique_ptr<BBDX::BlurCacheEntry> cache;
+
+    /// The render target color space the cached textures were created for.
+    /// Must be recreated when the view switches between SDR/HDR color descriptions.
+    std::shared_ptr<KWin::ColorDescription> colorDescription;
 };
 
 struct BlurEffectData

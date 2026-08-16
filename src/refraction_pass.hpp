@@ -1,5 +1,7 @@
 #pragma once
 
+#include <core/rendertarget.h>
+
 #include <opengl/glshader.h>
 
 #include <QMatrix4x4>
@@ -64,6 +66,13 @@ public:
      * returns false if refraction is disabled
      */
     bool pushShader() const;
+
+    /**
+     * Set colorspace conversion uniforms for the current RenderTarget.
+     * The shaders linearize before sampling and encode back before writing,
+     * so source and destination colorspace are the same here.
+     */
+    void setColorspaceUniforms(const KWin::RenderTarget &renderTarget) const;
 
     /**
      * Set GLSL parameters
